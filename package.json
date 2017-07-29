@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "name": "bot-random-word",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "lime-transport-websocket": "^2.0.2",
+    "messaginghub-client": "^3.4.1",
+    "request": "^2.81.0",
+    "request-promise": "^4.2.1"
+  }
+}
