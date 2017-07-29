@@ -5,89 +5,207 @@ let Lime = require('lime-js');
 let WebSocketTransport = require('lime-transport-websocket');
 let MessagingHub = require('messaginghub-client');
 let request = require('request-promise');
+let status = [];
+let passo = '';
+let dados = [
+    {
+        nome: 'Davidson Nogueira',
+        placa: 'abc1234',
+        aniversario: '29/07/2017'
+    }
+];
 
 // These are the MessagingHub credentials for this bot.
 // If you want to create your own bot, see http://blip.ai
-const IDENTIFIER = 'sdkbreno';
-const ACCESS_KEY = 'OENvWVRtWUJUN2JjYWQ3S2xUSGI=';
-const API_ENDPOINT = 'http://randomword.setgetgo.com/get.php';
+const IDENTIFIER = 'botcare';
+const ACCESS_KEY = 'czhNYnFXRm1jY2lYVnRNQ1F6RWs=';
 
-// instantiate and setup client
-let client = new MessagingHub.ClientBuilder()
+// Cria uma instância do cliente, informando o identifier e accessKey do seu chatbot
+var client = new MessagingHub.ClientBuilder()
     .withIdentifier(IDENTIFIER)
     .withAccessKey(ACCESS_KEY)
     .withTransportFactory(() => new WebSocketTransport())
     .build();
 
-let lastAnswerForUser = {};
+// Registra um receiver para mensagens do tipo 'text/plain'
+client.addMessageReceiver((m) => m.type == 'text/plain', function(message) {
+    var msg = {};
 
-client.addMessageReceiver(() => true, (m) => {
-    console.log('Receiver 1');
-    console.log(m);
-    return true;
-});
+    console.log(message);
+    console.log('STATUS: ' + status[message.from]);
+    switch (status[message.from]) {
+        case 's1':
+            var encontrado = false;
+            var nome = '';
 
-client.addMessageReceiver(() => true, (m) => {
-    console.log('Receiver 2');
-    if (m.type !== 'text/plain') return;
+            for (var i = 0; i < dados.length; i++) {
+                if (dados[i].placa == message.content) {
+                    encontrado = true;
+                    passo = 's2';
+                    var conteudo = 'Ótimo, ' + dados[i].nome + ' já te encontramos, agora preciso da data do seu nascimento.';
+                    msg = { id: Lime.Guid(), type: "text/plain", content: conteudo, to: message.from };
+                    break;
+                }
+            }
 
-    console.log(`<< ${m.from}: ${m.content}`);
+            console.log(encontrado);
 
-    if (m.content.indexOf('word') !== -1) {
-        registerAction({ category: 'User', action: 'asked for word' });
-    }
+            if (encontrado == false) {
+                passo = 's1';
+                msg = { id: Lime.Guid(), type: "text/plain", content: "Ops, não encontramos o seu registro. Por favor, digite novamente.", to: message.from };
+            }
+            break;
+        case 's2':
+            var encontrado = false;
+            var nome = '';
 
-    switch (lastAnswerForUser[m.from]) {
-    case undefined:
-        registerAction({ category: 'User', action: 'first request' });
-        break;
-    case false:
-        registerAction({ category: 'User', action: 'asked again after denial' });
-        break;
-    default:
-        registerAction({ category: 'User', action: 'asked again after answer' });
-        break;
-    }
+            for (var i = 0; i < dados.length; i++) {
+                if (dados[i].aniversario == message.content) {
+                    encontrado = true;
+                    passo = 's3';
+                    msg = {
+                        id: Lime.Guid(),
+                        to: message.from,
+                        type: "application/vnd.lime.select+json",
+                        content:{
+                            text:"Aqui estão os problemas mais recorrentes. Clique em uma das opções:",
+                            options:[
+                                {
+                                    value: 's4',
+                                    order: 1,
+                                    text:"Pneu furado"
+                                },
+                                {
+                                    value: 's5',
+                                    order: 2,
+                                    text:"Carro não funciona"
+                                },
+                                {
+                                    value: 's6',
+                                    order: 3,
+                                    text:"Bateria"
+                                    // ,type:"application/json",
+                                    // value:{
+                                    //     "key1":"value1",
+                                    //     "key2":2
+                                    // }
+                                }
+                            ]
+                        }
+                    };
+                    break;
+                }
+            }
 
-    // 50% chance of denying the request
-    if (Math.random() < 0.5) {
-        console.log(`!> No, ${m.from}!`);
-        lastAnswerForUser[m.from] = false;
-        registerAction({ category: 'Bot', action: 'denied' });
-        return;
-    }
+            if (encontrado == false) {
+                passo = 's2';
+                msg = { id: Lime.Guid(), type: "text/plain", content: "Ops, não encontramos o seu registro. Por favor, digite novamente.", to: message.from };
+            }
+            break;
+        case 's3':
+            var conteudo = '';
+            if (message.content == 'Pneu furado') {
+                passo = 's4';
+                msg = {
+                    id: Lime.Guid(),
+                    to: message.from,
+                    type: "application/vnd.lime.select+json",
+                    content:{
+                        text:"Ok, você está no endereço Rua Paraguassu, 83 - Prado?",
+                        options:[
+                            {
+                                order: 1,
+                                text:"Sim"
+                            },
+                            {
+                                order: 2,
+                                text:"Não"
+                            }
+                        ]
+                    }
+                };
+            } else if (message.content == 'Carro não funciona') {
+                passo = 's5';
+                conteudo = "Você selecionou Carro não funciona";
+            } else if (message.content == 'Bateria') {
+                passo = 's6';
+                msg = {
+                    id: Lime.Guid(),
+                    to: message.from,
+                    type: "application/vnd.lime.select+json",
+                    content:{
+                        text:"Ok, você está no endereço Rua Paraguassu, 83 - Prado?",
+                        options:[
+                            {
+                                order: 1,
+                                text:"Sim"
+                            },
+                            {
+                                order: 2,
+                                text:"Não"
+                            }
+                        ]
+                    }
+                };
+            } else {
+                passo = undefined;
+                conteudo = 'Ops, preciso de mais detalhes, poderia ligar na nossa central de relacionamento?';
+                msg = { id: Lime.Guid(), type: "text/plain", content: conteudo, to: message.from };
+            }
+            break;
+        case 's4':
+            passo = 's3';
+            if (message.content == 'Sim') {
+                conteudo = 'Aguarde um pouco, já estamos enviando ajuda. Se precisar de mais ajuda ligue para nossa central';
+            } else {
+                conteudo = 'Ops, preciso de mais detalhes, poderia ligar na nossa central de relacionamento?';
+            }
 
-    // answer with a random word
-    request
-        .get(API_ENDPOINT)
-        .then((res) => {
-            let message = {
+            msg = { id: Lime.Guid(), type: "text/plain", content: conteudo, to: message.from };
+            break;
+        case 's5':
+            passo = 's3';
+
+            msg = { id: Lime.Guid(), type: "text/plain", content: 'Ainda estou aprendendo, poderia ligar na nossa central de relacionamento?', to: message.from };
+            break;
+        case 's6':
+            passo = 's3';
+            if (message.content == 'Sim') {
+                conteudo = 'Aguarde um pouco, já estamos enviando ajuda. Se precisar de mais ajuda ligue para nossa central';
+            } else {
+                conteudo = 'Ops, preciso de mais detalhes, poderia ligar na nossa central de relacionamento?';
+            }
+
+            msg = { id: Lime.Guid(), type: "text/plain", content: conteudo, to: message.from };
+            break;
+        default:
+            passo = 's1';
+            msg = {
                 id: Lime.Guid(),
-                type: 'text/plain',
-                content: res,
-                to: m.from
+                type: "text/plain",
+                content: "Oi, eu sou o Botcare, assistente virtual da Seguradora Pão de Queijo.Estou aqui para lhe ajudar com os problemas do seu carro.\n\nPor favor, informe sua placa.",
+                to: message.from
             };
-            console.log(`>> ${message.to}: ${message.content}`);
-            lastAnswerForUser[m.from] = res;
-            registerAction({ category: 'Bot', action: 'answered' });
-            client.sendMessage(message);
-        })
-        .catch((err) => console.error(err));
+
+            break;
+    }
+
+    console.log(msg);
+    console.log(passo);
+
+    client.sendMessage(msg);
+    status[message.from] = passo;
 });
 
-// connect to the MessagingHub server
-client.connect()
-    .then(() => console.log('Listening...'))
-    .catch((err) => console.error(err));
+// Registra um receiver para qualquer notificação
+client.addNotificationReceiver(true, function(notification) {
+  // TODO: Processe a notificação recebida
+});
 
-// analytics helper functions
-function registerAction(resource) {
-    return client.sendCommand({
-        id: Lime.Guid(),
-        method: Lime.CommandMethod.SET,
-        type: 'application/vnd.iris.eventTrack+json',
-        uri: '/event-track',
-        resource: resource
-    })
-        .catch(e => console.log(e));
-}
+// Conecta com o servidor de forma assíncrona.
+// A conexão ocorre via websocket, na porta 8081.
+client.connect() // O retorno deste método é uma 'promise'.
+    .then(function(session) {
+        // Conexão bem sucedida. A partir deste momento, é possível enviar e receber envelopes do servidor. */
+        })
+    .catch(function(err) { /* Falha de conexão. */ });
